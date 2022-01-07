@@ -1,0 +1,47 @@
+---
+
+- hosts: all
+  gather_facts: false
+  vars:
+    - file_names: ""
+  tasks:
+
+  - name: Find log4j files
+    ansible.windows.win_find:
+      paths: ['C:', 'E:']
+      patterns: "*log4j*.jar"
+      recurse: yes
+      follow: yes
+      get_checksum: no
+      hidden: yes
+    register: wrapper
+
+#  - name: output wrapper
+#    debug:
+#      var: wrapper.files
+
+  - name: output paths
+    set_fact:
+      file_names: "{{ file_names }}\n{{ inventory_hostname }},{{ item.path }}"
+    with_items: "{{ wrapper.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+
+  - debug:
+      var: file_names
+
+  - name: append
+    local_action:
+      module: copy
+      content: "{{ file_names }}"
+      dest: "~/{{ inventory_hostname }}-log4j_finds.txt"
+    delegate_to: localhost
+
+
+  - name: append to one file
+    lineinfile:
+      dest: ~/log4j_finds.csv
+      line: "{{ item }}"
+      insertafter: EOF
+    with_items: "{{ file_names }}"
+    delegate_to: localhost
